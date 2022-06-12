@@ -1,19 +1,6 @@
 /*
  * Copyright (C) 2014 jibi <jibi@paranoici.org>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <signal.h>
@@ -51,6 +38,7 @@ ws2811_t ledstring =
             .count      = LED_COUNT,
             .invert     = 0,
             .brightness = 55,
+            .strip_type = WS2811_STRIP_GRB,
         }
     }
 };
@@ -123,11 +111,37 @@ init_unicorn_hat(void)
 {
 	int i;
 	struct sigaction sa;
+	/* All terminating signals, as described by 'man 7 signal'. */
+	static const int term_signals[] = {
+		/* POSIX.1-1990 */
+		SIGHUP,
+		SIGINT,
+		SIGQUIT,
+		SIGILL,
+		SIGABRT,
+		SIGFPE,
+		SIGKILL,
+		SIGSEGV,
+		SIGPIPE,
+		SIGALRM,
+		SIGTERM,
+		SIGUSR1,
+		SIGUSR2,
+		/* POSIX.1-2001 */
+		SIGBUS,
+		SIGPOLL,
+		SIGPROF,
+		SIGSYS,
+		SIGTRAP,
+		SIGVTALRM,
+		SIGXCPU,
+		SIGXFSZ,
+	};
 
-	for (i = 0; i < 64; i++) {
+	for (i = 0; i < sizeof(term_signals)/sizeof(term_signals[0]); i++) {
 		memset(&sa, 0, sizeof(sa));
 		sa.sa_handler = unicornd_exit;
-		sigaction(i, &sa, NULL);
+		sigaction(term_signals[i], &sa, NULL);
 	}
 
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -146,6 +160,7 @@ init_unicorn_hat(void)
 #define	UNICORND_CMD_SET_PIXEL      1
 #define	UNICORND_CMD_SET_ALL_PIXELS 2
 #define	UNICORND_CMD_SHOW           3
+#define	UNICORND_CMD_CLEAR          4
 
 #define recv_or_return(socket, buf, len, flags) \
 {                                               \
@@ -275,6 +290,11 @@ handle_client(int client_socket) {
 				show();
 				break;
 
+			case UNICORND_CMD_CLEAR:
+
+				clear_led_buffer();
+				break;
+				
 			default:
 
 				close(client_socket);
